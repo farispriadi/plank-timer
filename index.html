@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Plank Timer</title>
+    <!-- Tailwind CSS for rapid styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Default Setup Background */
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            transition: background 1s ease-in-out;
+            color: white;
+            overflow: hidden;
+        }
+
+        /* --- Dynamic Animated Gradient Backgrounds --- */
+        
+        /* Base class for animated gradients */
+        .animated-bg {
+            background-size: 400% 400% !important;
+            animation: gradientMove 6s ease infinite;
+        }
+
+        /* Plank Phase: Energetic pulsing red/orange */
+        .bg-plank {
+            background: linear-gradient(-45deg, #ff4b1f, #ff9068, #eb3349, #f45c43);
+        }
+
+        /* Rest Phase: Calming blue/teal */
+        .bg-rest {
+            background: linear-gradient(-45deg, #00b4db, #0083b0, #1cb5e0, #000046);
+            animation-duration: 8s; /* Slower, calmer animation */
+        }
+
+        /* Summary Phase: Success Green */
+        .bg-summary {
+            background: linear-gradient(-45deg, #11998e, #38ef7d, #0f9b0f, #00b09b);
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* --- Glassmorphism UI --- */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Hide number input spinners */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body id="app-body" class="p-4 sm:p-8">
+
+    <!-- Main Container -->
+    <div class="glass-panel w-full max-w-sm sm:max-w-md rounded-3xl p-6 sm:p-10 relative overflow-hidden">
+        
+        <!-- 1. SETUP SCREEN -->
+        <div id="setup-screen" class="block fade-in">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold tracking-tight mb-2">Plank Timer</h1>
+                <p class="text-white/70 text-sm">Configure your core workout.</p>
+            </div>
+
+            <div id="error-message" class="hidden bg-red-500/80 text-white text-sm py-2 px-3 rounded-lg mb-4 text-center backdrop-blur-sm">
+                Invalid input.
+            </div>
+
+            <div class="space-y-5">
+                <!-- Reps / Sets -->
+                <div>
+                    <label class="block text-white/80 text-sm font-semibold mb-1">Number of Reps / Sets</label>
+                    <div class="relative">
+                        <input type="number" id="input-reps" value="3" min="1" class="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-white/50 transition-all text-center">
+                    </div>
+                </div>
+
+                <!-- Plank Time -->
+                <div>
+                    <label class="block text-white/80 text-sm font-semibold mb-1">Plank Duration (seconds)</label>
+                    <div class="relative">
+                        <input type="number" id="input-plank" value="60" min="5" class="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-white/50 transition-all text-center">
+                    </div>
+                </div>
+
+                <!-- Rest Time -->
+                <div>
+                    <label class="block text-white/80 text-sm font-semibold mb-1">Rest Duration (seconds)</label>
+                    <div class="relative">
+                        <input type="number" id="input-rest" value="10" min="0" class="w-full bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-white/50 transition-all text-center">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startWorkout()" class="w-full bg-white text-gray-900 font-bold text-lg py-4 rounded-xl mt-8 hover:bg-gray-100 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                Start Workout
+            </button>
+        </div>
+
+        <!-- 2. WORKOUT SCREEN -->
+        <div id="workout-screen" class="hidden text-center fade-in py-4">
+            
+            <!-- Phase Indicator -->
+            <div id="phase-badge" class="inline-block px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white font-bold tracking-widest uppercase text-sm mb-6 shadow-lg backdrop-blur-md">
+                GET READY
+            </div>
+
+            <!-- Timer Circle -->
+            <div class="relative w-48 h-48 sm:w-56 sm:h-56 mx-auto mb-8 flex items-center justify-center bg-white/5 rounded-full border-4 border-white/20 shadow-[inset_0_0_20px_rgba(0,0,0,0.2)]">
+                <div id="timer-display" class="text-7xl sm:text-8xl font-black tabular-nums tracking-tighter drop-shadow-lg">
+                    60
+                </div>
+            </div>
+
+            <!-- Reps Counter -->
+            <div class="flex justify-center items-center space-x-2 text-xl font-medium mb-8">
+                <span class="text-white/70 uppercase text-sm tracking-wider">Rep</span>
+                <span id="rep-current" class="font-bold text-2xl">1</span>
+                <span class="text-white/50">/</span>
+                <span id="rep-total" class="font-bold text-white/70">3</span>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex gap-4">
+                <button id="btn-pause" onclick="togglePause()" class="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 rounded-xl transition-all backdrop-blur-sm">
+                    Pause
+                </button>
+                <button onclick="stopWorkout()" class="flex-1 bg-black/20 hover:bg-black/40 border border-transparent text-white/80 hover:text-white font-semibold py-3 rounded-xl transition-all backdrop-blur-sm">
+                    Stop
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. SUMMARY SCREEN -->
+        <div id="summary-screen" class="hidden text-center fade-in py-6">
+            <div class="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.4)]">
+                <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+
+            <h2 class="text-3xl font-black mb-2">Workout Complete!</h2>
+            <p class="text-white/80 mb-8">Great job crushing your core workout.</p>
+
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-black/20 rounded-2xl p-4 border border-white/10">
+                    <div class="text-white/60 text-sm font-semibold uppercase tracking-wider mb-1">Time Planking</div>
+                    <div class="text-3xl font-black text-white">
+                        <span id="summary-time">0</span><span class="text-lg font-medium text-white/70 ml-1">min</span>
+                    </div>
+                </div>
+                <div class="bg-black/20 rounded-2xl p-4 border border-white/10">
+                    <div class="text-white/60 text-sm font-semibold uppercase tracking-wider mb-1">Est. Burn</div>
+                    <div class="text-3xl font-black text-white">
+                        <span id="summary-cal">0</span><span class="text-lg font-medium text-white/70 ml-1">kcal</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="resetToSetup()" class="w-full bg-white text-green-700 font-bold text-lg py-4 rounded-xl hover:bg-gray-100 hover:scale-[1.02] active:scale-95 transition-all shadow-lg">
+                Done
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // DOM Elements
+        const body = document.getElementById('app-body');
+        
+        // Screens
+        const screenSetup = document.getElementById('setup-screen');
+        const screenWorkout = document.getElementById('workout-screen');
+        const screenSummary = document.getElementById('summary-screen');
+        const errorMsg = document.getElementById('error-message');
+
+        // Workout UI
+        const timerDisplay = document.getElementById('timer-display');
+        const phaseBadge = document.getElementById('phase-badge');
+        const repCurrent = document.getElementById('rep-current');
+        const repTotal = document.getElementById('rep-total');
+        const btnPause = document.getElementById('btn-pause');
+
+        // Summary UI
+        const summaryTime = document.getElementById('summary-time');
+        const summaryCal = document.getElementById('summary-cal');
+
+        // App State
+        let workoutData = {
+            reps: 3,
+            plankDuration: 60,
+            restDuration: 10
+        };
+
+        let state = {
+            currentRep: 1,
+            timeLeft: 0,
+            phase: 'SETUP', // SETUP, PLANK, REST, SUMMARY
+            isPaused: false,
+            interval: null
+        };
+
+        // Constants
+        const KCAL_PER_MINUTE = 5;
+
+        // Functions
+        function switchScreen(hideElements, showElement) {
+            hideElements.forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('fade-in');
+            });
+            showElement.classList.remove('hidden');
+            // Trigger reflow to restart animation
+            void showElement.offsetWidth;
+            showElement.classList.add('fade-in');
+        }
+
+        function showError(msg) {
+            errorMsg.innerText = msg;
+            errorMsg.classList.remove('hidden');
+            setTimeout(() => errorMsg.classList.add('hidden'), 3000);
+        }
+
+        function updateBackground() {
+            // Remove existing background classes
+            body.className = body.className.replace(/\banimated-bg\b|\bbg-\S+/g, '').trim();
+            body.classList.add('p-4', 'sm:p-8'); // Restore padding
+
+            if (state.phase === 'PLANK') {
+                body.classList.add('animated-bg', 'bg-plank');
+            } else if (state.phase === 'REST') {
+                body.classList.add('animated-bg', 'bg-rest');
+            } else if (state.phase === 'SUMMARY') {
+                body.classList.add('animated-bg', 'bg-summary');
+            } else {
+                // Setup default background applies from CSS when no classes are present
+            }
+        }
+
+        function formatTime(seconds) {
+            // If more than 60 seconds, show MM:SS, else just SS
+            if (seconds >= 60) {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m}:${s.toString().padStart(2, '0')}`;
+            }
+            return seconds;
+        }
+
+        function startWorkout() {
+            // Get values
+            const reps = parseInt(document.getElementById('input-reps').value);
+            const plank = parseInt(document.getElementById('input-plank').value);
+            const rest = parseInt(document.getElementById('input-rest').value);
+
+            // Validate
+            if (isNaN(reps) || reps < 1) return showError("Reps must be at least 1.");
+            if (isNaN(plank) || plank < 1) return showError("Plank duration must be at least 1 sec.");
+            if (isNaN(rest) || rest < 0) return showError("Rest duration cannot be negative.");
+
+            // Set Data
+            workoutData = { reps, plankDuration: plank, restDuration: rest };
+            
+            // Set Initial State
+            state = {
+                currentRep: 1,
+                phase: 'PLANK',
+                timeLeft: workoutData.plankDuration,
+                isPaused: false,
+                interval: null
+            };
+
+            // Update UI
+            repTotal.innerText = workoutData.reps;
+            updateWorkoutUI();
+            updateBackground();
+            switchScreen([screenSetup, screenSummary], screenWorkout);
+
+            // Start Timer
+            runTimer();
+        }
+
+        function updateWorkoutUI() {
+            repCurrent.innerText = state.currentRep;
+            timerDisplay.innerText = formatTime(state.timeLeft);
+
+            if (state.phase === 'PLANK') {
+                phaseBadge.innerText = 'WORK: PLANK';
+                phaseBadge.className = 'inline-block px-6 py-2 rounded-full bg-white border-2 border-transparent text-red-600 font-black tracking-widest uppercase text-sm mb-6 shadow-[0_0_20px_rgba(255,255,255,0.4)] transition-all';
+            } else {
+                phaseBadge.innerText = 'REST & BREATHE';
+                phaseBadge.className = 'inline-block px-6 py-2 rounded-full bg-black/30 border border-white/30 text-white font-bold tracking-widest uppercase text-sm mb-6 shadow-lg backdrop-blur-md transition-all';
+            }
+        }
+
+        function runTimer() {
+            if (state.interval) clearInterval(state.interval);
+            
+            state.interval = setInterval(() => {
+                if (state.isPaused) return;
+
+                state.timeLeft--;
+                
+                if (state.timeLeft < 0) {
+                    handlePhaseTransition();
+                } else {
+                    timerDisplay.innerText = formatTime(state.timeLeft);
+                }
+            }, 1000);
+        }
+
+        function handlePhaseTransition() {
+            if (state.phase === 'PLANK') {
+                if (state.currentRep >= workoutData.reps) {
+                    // Workout finished completely
+                    finishWorkout();
+                } else {
+                    // Transition to Rest (if rest > 0)
+                    if (workoutData.restDuration > 0) {
+                        state.phase = 'REST';
+                        state.timeLeft = workoutData.restDuration;
+                        updateBackground();
+                        updateWorkoutUI();
+                    } else {
+                        // Skip rest, immediately go to next rep
+                        state.currentRep++;
+                        state.timeLeft = workoutData.plankDuration;
+                        updateWorkoutUI();
+                    }
+                }
+            } else if (state.phase === 'REST') {
+                // Rest is over, back to plank for next rep
+                state.phase = 'PLANK';
+                state.currentRep++;
+                state.timeLeft = workoutData.plankDuration;
+                updateBackground();
+                updateWorkoutUI();
+            }
+        }
+
+        function togglePause() {
+            state.isPaused = !state.isPaused;
+            if (state.isPaused) {
+                btnPause.innerText = 'Resume';
+                btnPause.classList.add('bg-white', 'text-gray-900');
+                btnPause.classList.remove('bg-white/10', 'text-white');
+                timerDisplay.classList.add('opacity-50', 'animate-pulse');
+            } else {
+                btnPause.innerText = 'Pause';
+                btnPause.classList.remove('bg-white', 'text-gray-900');
+                btnPause.classList.add('bg-white/10', 'text-white');
+                timerDisplay.classList.remove('opacity-50', 'animate-pulse');
+            }
+        }
+
+        function stopWorkout() {
+            if (state.interval) clearInterval(state.interval);
+            resetToSetup();
+        }
+
+        function finishWorkout() {
+            if (state.interval) clearInterval(state.interval);
+            state.phase = 'SUMMARY';
+            
+            // Calculate stats
+            const totalActiveSeconds = workoutData.reps * workoutData.plankDuration;
+            const totalMinutes = +(totalActiveSeconds / 60).toFixed(2);
+            const calories = +(totalMinutes * KCAL_PER_MINUTE).toFixed(1);
+
+            // Display stats
+            summaryTime.innerText = totalMinutes;
+            summaryCal.innerText = calories;
+
+            updateBackground();
+            switchScreen([screenWorkout, screenSetup], screenSummary);
+        }
+
+        function resetToSetup() {
+            state.phase = 'SETUP';
+            state.isPaused = false;
+            
+            // Reset pause button visual
+            btnPause.innerText = 'Pause';
+            btnPause.className = 'flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 rounded-xl transition-all backdrop-blur-sm';
+            timerDisplay.classList.remove('opacity-50', 'animate-pulse');
+
+            updateBackground();
+            switchScreen([screenWorkout, screenSummary], screenSetup);
+        }
+    </script>
+</body>
+</html>
